@@ -191,6 +191,28 @@ def loads(yaml_string, fname=None):
     """
     Load the given YAML string
     """
+    # discard cflint-disable sections
+    # tried to do it with a regex at first however, unless we find a way to
+    # replace the empty lines with newline characters, this will break plugins
+    # which rely on the line number so we inspect the file line by line
+    import re
+    lines = yaml_string.splitlines()
+    disable_re = re.compile(r'#\s*cfn\-?lint\s+disable')
+    enable_re = re.compile(r'#\s*cfn\-?lint\s+enable')
+    clean_lines = []
+    is_disabled = False
+    for line in lines:
+        if enable_re.search(line) is not None:
+            is_disabled = False
+            line = ''
+        elif disable_re.search(line) is not None:
+            is_disabled = True
+            line = ''
+        elif is_disabled is True:
+            line = ''
+        clean_lines.append(line)
+    yaml_string = '\n'.join(clean_lines)
+
     loader = MarkedLoader(yaml_string, fname)
     loader.add_multi_constructor('!', multi_constructor)
     template = loader.get_single_data()
